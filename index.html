@@ -132,7 +132,13 @@
   }
   .task-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .task-title { font-size: 14px; font-weight: 700; }
+  .task-head-right { display: flex; align-items: center; gap: 10px; }
   .task-count { font-size: 12px; color: var(--muted); }
+  .manage-btn {
+    border: none; border-radius: 10px; background: var(--accent-soft);
+    color: var(--accent-deep); font-size: 12px; font-weight: 600;
+    padding: 5px 10px; cursor: pointer; font-family: inherit;
+  }
   .task-list { list-style: none; margin: 0; padding: 0; }
   .task-item {
     display: flex; align-items: center; gap: 10px;
@@ -143,6 +149,37 @@
   .task-item.done .dot { background: var(--accent); }
   .task-item .name { flex: 1; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .task-item.done .name { text-decoration: line-through; color: var(--muted); }
+  .task-item .del {
+    flex: 0 0 auto;
+    border: none; background: transparent;
+    color: var(--muted); font-size: 16px; line-height: 1;
+    width: 28px; height: 28px; border-radius: 8px;
+    cursor: pointer; font-family: inherit;
+    transition: background .15s ease, color .15s ease;
+  }
+  .task-item .del:hover { background: var(--accent-soft); color: var(--accent-deep); }
+  .task-item .check {
+    display: none; width: 17px; height: 17px; margin: 0;
+    accent-color: var(--accent); flex: 0 0 auto; pointer-events: none;
+  }
+  .task-list.select-mode .check { display: block; }
+  .task-list.select-mode .del { display: none; }
+  .task-list.select-mode .task-item { cursor: pointer; }
+  .batch-bar {
+    display: none; align-items: center; gap: 8px;
+    padding: 8px 0 10px; border-top: 1px solid var(--line);
+    font-size: 12px; color: var(--muted);
+  }
+  .batch-bar.show { display: flex; }
+  .batch-bar label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .batch-bar input { accent-color: var(--accent); margin: 0; }
+  .batch-bar button {
+    border: none; border-radius: 10px; padding: 6px 10px;
+    font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .batch-bar .danger { background: var(--accent); color: #fff; }
+  .batch-bar .danger:disabled { opacity: .5; }
+  .batch-bar .plain { background: var(--accent-soft); color: var(--accent-deep); margin-left: auto; }
   .add-row { display: flex; gap: 8px; margin-top: 10px; }
   .add-row input {
     flex: 1; min-width: 0;
@@ -199,7 +236,15 @@
   <div class="task-card">
     <div class="task-head">
       <div class="task-title">今日待办</div>
-      <div class="task-count" id="taskCount">0 / 0</div>
+      <div class="task-head-right">
+        <div class="task-count" id="taskCount">0 / 0</div>
+        <button class="manage-btn" id="manageBtn" type="button">批量删除</button>
+      </div>
+    </div>
+    <div class="batch-bar" id="batchBar">
+      <label><input type="checkbox" id="selectAll"> 全选</label>
+      <button class="danger" id="deleteSelectedBtn" type="button" disabled>删除选中</button>
+      <button class="plain" id="cancelBatchBtn" type="button">取消</button>
     </div>
     <ul class="task-list" id="taskList"></ul>
     <div class="add-row">
@@ -230,6 +275,20 @@
   var taskInput = document.getElementById('taskInput');
   var addBtn = document.getElementById('addBtn');
   var tabs = document.getElementById('tabs');
+  var manageBtn = document.getElementById('manageBtn');
+  var batchBar = document.getElementById('batchBar');
+  var selectAll = document.getElementById('selectAll');
+  var deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+  var cancelBatchBtn = document.getElementById('cancelBatchBtn');
+
+  var STORE_KEY = 'focusly-state-v1';
+  var batchMode = false;
+  var selected = {};
+
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  }
 
   var state = {
     mode: 'focus',
@@ -245,6 +304,56 @@
       { name: '整理本周工作笔记', done: false }
     ]
   };
+
+  // 从本地存储恢复数据（刷新后不丢失；跨天自动重置今日统计）
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      var saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object') {
+        var isToday = saved.date === todayStr();
+        state.doneToday = isToday ? (Number(saved.doneToday) || 0) : 0;
+        state.cycles = isToday ? (Number(saved.cycles) || 0) : 0;
+        state.totalMinutes = isToday ? (Number(saved.totalMinutes) || 0) : 0;
+        if (Array.isArray(saved.tasks)) {
+          state.tasks = saved.tasks.filter(function (t) {
+            return t && typeof t.name === 'string';
+          }).map(function (t) { return { name: t.name, done: !!t.done }; });
+        }
+        if (saved.mode === 'focus' || saved.mode === 'break') {
+          state.mode = saved.mode;
+          state.total = Number(saved.total) > 0 ? Number(saved.total) : 25 * 60;
+          var left = Number(saved.left);
+          state.left = isFinite(left) && left >= 0 && left <= state.total ? left : state.total;
+        }
+      }
+    }
+  } catch (e) {}
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        date: todayStr(),
+        mode: state.mode,
+        total: state.total,
+        left: state.left,
+        doneToday: state.doneToday,
+        cycles: state.cycles,
+        totalMinutes: state.totalMinutes,
+        tasks: state.tasks
+      }));
+    } catch (e) {}
+  }
+
+  function syncTab() {
+    var all = tabs.querySelectorAll('.tab');
+    for (var i = 0; i < all.length; i++) {
+      var btn = all[i];
+      var match = btn.getAttribute('data-mode') === state.mode &&
+        parseInt(btn.getAttribute('data-min'), 10) === Math.round(state.total / 60);
+      btn.classList.toggle('active', match);
+    }
+  }
 
   function fmt(sec) {
     var m = Math.floor(sec / 60);
@@ -265,6 +374,7 @@
     doneCount.textContent = String(state.doneToday);
     cycleCount.textContent = String(state.cycles);
     totalMin.textContent = String(state.totalMinutes);
+    saveState();
   }
 
   function tick() {
@@ -342,12 +452,19 @@
 
   function renderTasks() {
     taskList.innerHTML = '';
+    taskList.classList.toggle('select-mode', batchMode);
     var done = 0;
     for (var i = 0; i < state.tasks.length; i++) {
       var t = state.tasks[i];
       if (t.done) done += 1;
       var li = document.createElement('li');
       li.className = 'task-item' + (t.done ? ' done' : '');
+      var check = document.createElement('input');
+      check.type = 'checkbox';
+      check.className = 'check';
+      check.checked = !!selected[i];
+      check.setAttribute('aria-label', '选择待办：' + t.name);
+      li.appendChild(check);
       var dot = document.createElement('span');
       dot.className = 'dot';
       var name = document.createElement('span');
@@ -355,9 +472,24 @@
       name.textContent = t.name;
       li.appendChild(dot);
       li.appendChild(name);
+      var del = document.createElement('button');
+      del.className = 'del';
+      del.type = 'button';
+      del.setAttribute('aria-label', '删除待办：' + t.name);
+      del.title = '删除';
+      del.textContent = '×';
+      li.appendChild(del);
       taskList.appendChild(li);
     }
     taskCount.textContent = done + ' / ' + state.tasks.length;
+    batchBar.classList.toggle('show', batchMode);
+    var selCount = 0;
+    for (var k in selected) { if (selected[k]) selCount += 1; }
+    deleteSelectedBtn.disabled = selCount === 0;
+    selectAll.checked = state.tasks.length > 0 && selCount === state.tasks.length;
+    selectAll.disabled = state.tasks.length === 0;
+    manageBtn.textContent = batchMode ? '完成' : '批量删除';
+    saveState();
   }
 
   function addTask() {
@@ -381,12 +513,47 @@
     for (var i = 0; i < items.length; i++) {
       if (items[i] === li) { idx = i; break; }
     }
-    if (idx >= 0 && state.tasks[idx]) {
-      state.tasks[idx].done = !state.tasks[idx].done;
+    if (idx < 0 || !state.tasks[idx]) return;
+    if (batchMode) {
+      selected[idx] = !selected[idx];
       renderTasks();
+      return;
     }
+    if (e.target.closest('.del')) {
+      state.tasks.splice(idx, 1);
+      renderTasks();
+      return;
+    }
+    state.tasks[idx].done = !state.tasks[idx].done;
+    renderTasks();
   });
 
+  // 批量删除相关
+  manageBtn.addEventListener('click', function () {
+    batchMode = !batchMode;
+    selected = {};
+    renderTasks();
+  });
+  selectAll.addEventListener('change', function () {
+    selected = {};
+    if (selectAll.checked) {
+      for (var i = 0; i < state.tasks.length; i++) selected[i] = true;
+    }
+    renderTasks();
+  });
+  deleteSelectedBtn.addEventListener('click', function () {
+    state.tasks = state.tasks.filter(function (_, i) { return !selected[i]; });
+    batchMode = false;
+    selected = {};
+    renderTasks();
+  });
+  cancelBatchBtn.addEventListener('click', function () {
+    batchMode = false;
+    selected = {};
+    renderTasks();
+  });
+
+  syncTab();
   renderTasks();
   render();
 })();
