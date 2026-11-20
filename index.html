@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#faf7f2">
+<title>Focusly · 专注番茄钟</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --card: #ffffff;
+    --text: #2b2a28;
+    --muted: #8a8580;
+    --line: #ece7df;
+    --accent: #e2725b;
+    --accent-soft: #fbe9e4;
+    --accent-deep: #c85a43;
+    --shadow: 0 8px 24px rgba(43, 42, 40, 0.06);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  }
+  .wrap { width: 100%; max-width: 420px; }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .brand { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+  .brand span { color: var(--accent); }
+  .tag { font-size: 12px; color: var(--muted); }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    padding: 4px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease;
+    font-family: inherit;
+  }
+  .tab.active { background: var(--accent-soft); color: var(--accent-deep); }
+
+  .timer-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    padding: 28px 22px 24px;
+    box-shadow: var(--shadow);
+    text-align: center;
+  }
+  .ring { position: relative; width: 240px; height: 240px; margin: 0 auto 14px; }
+  .ring svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+  .ring .track { stroke: var(--line); }
+  .ring .prog { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .5s linear; }
+  .time-text {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px;
+  }
+  .time-value { font-size: 46px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+  .time-label { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+  .hint { font-size: 13px; color: var(--muted); min-height: 18px; }
+
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .btn {
+    flex: 1;
+    border: none;
+    border-radius: 16px;
+    padding: 14px 0;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .12s ease, opacity .2s ease;
+    font-family: inherit;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:disabled { opacity: .5; }
+  .btn-ghost { background: var(--accent-soft); color: var(--accent-deep); }
+  .btn-ghost:disabled { opacity: .5; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 14px 8px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .stat-num { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .task-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px;
+    margin-top: 14px;
+    box-shadow: var(--shadow);
+  }
+  .task-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .task-title { font-size: 14px; font-weight: 700; }
+  .task-count { font-size: 12px; color: var(--muted); }
+  .task-list { list-style: none; margin: 0; padding: 0; }
+  .task-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-top: 1px solid var(--line);
+  }
+  .task-item:first-child { border-top: none; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: 0 0 auto; }
+  .task-item.done .dot { background: var(--accent); }
+  .task-item .name { flex: 1; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .task-item.done .name { text-decoration: line-through; color: var(--muted); }
+  .add-row { display: flex; gap: 8px; margin-top: 10px; }
+  .add-row input {
+    flex: 1; min-width: 0;
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px 12px; font-size: 14px; font-family: inherit;
+    background: var(--bg); color: var(--text);
+  }
+  .add-row input:focus { outline: none; border-color: var(--accent); }
+  .add-row button {
+    border: none; border-radius: 12px; background: var(--accent-soft);
+    color: var(--accent-deep); font-weight: 700; font-size: 14px;
+    padding: 0 16px; cursor: pointer; font-family: inherit;
+  }
+  footer { text-align: center; font-size: 11px; color: var(--muted); margin-top: 18px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Focus<span>ly</span></div>
+    <div class="tag">专注番茄钟 · 单文件版</div>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-mode="focus" data-min="25">专注 25</button>
+    <button class="tab" data-mode="break" data-min="5">短休息 5</button>
+    <button class="tab" data-mode="break" data-min="15">长休息 15</button>
+  </div>
+
+  <div class="timer-card">
+    <div class="ring">
+      <svg viewBox="0 0 240 240">
+        <circle class="track" cx="120" cy="120" r="106" fill="none" stroke-width="12"></circle>
+        <circle class="prog" id="prog" cx="120" cy="120" r="106" fill="none" stroke-width="12"
+                stroke-dasharray="666.02" stroke-dashoffset="0"></circle>
+      </svg>
+      <div class="time-text">
+        <div class="time-value" id="timeText">25:00</div>
+        <div class="time-label" id="timeLabel">准备专注</div>
+      </div>
+    </div>
+    <div class="hint" id="hint">保持专注，一次只做一件事</div>
+    <div class="actions">
+      <button class="btn btn-primary" id="startBtn">开始</button>
+      <button class="btn btn-ghost" id="resetBtn">重置</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-num" id="doneCount">0</div><div class="stat-label">今日完成</div></div>
+      <div class="stat"><div class="stat-num" id="cycleCount">0</div><div class="stat-label">连续轮次</div></div>
+      <div class="stat"><div class="stat-num" id="totalMin">0</div><div class="stat-label">专注分钟</div></div>
+    </div>
+  </div>
+
+  <div class="task-card">
+    <div class="task-head">
+      <div class="task-title">今日待办</div>
+      <div class="task-count" id="taskCount">0 / 0</div>
+    </div>
+    <ul class="task-list" id="taskList"></ul>
+    <div class="add-row">
+      <input id="taskInput" type="text" placeholder="添加一个待办，回车即可…" maxlength="40">
+      <button id="addBtn">添加</button>
+    </div>
+  </div>
+
+  <footer>
+    Focusly · 专注番茄钟网页示例<br>纯前端单文件，无需后端，打开即用
+  </footer>
+</div>
+
+<script>
+(function () {
+  var CIRC = 666.02;
+  var prog = document.getElementById('prog');
+  var timeText = document.getElementById('timeText');
+  var timeLabel = document.getElementById('timeLabel');
+  var hint = document.getElementById('hint');
+  var startBtn = document.getElementById('startBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var doneCount = document.getElementById('doneCount');
+  var cycleCount = document.getElementById('cycleCount');
+  var totalMin = document.getElementById('totalMin');
+  var taskCount = document.getElementById('taskCount');
+  var taskList = document.getElementById('taskList');
+  var taskInput = document.getElementById('taskInput');
+  var addBtn = document.getElementById('addBtn');
+  var tabs = document.getElementById('tabs');
+
+  var state = {
+    mode: 'focus',
+    total: 25 * 60,
+    left: 25 * 60,
+    running: false,
+    tickId: null,
+    doneToday: 0,
+    cycles: 0,
+    totalMinutes: 0,
+    tasks: [
+      { name: '阅读 20 页专业书', done: false },
+      { name: '整理本周工作笔记', done: false }
+    ]
+  };
+
+  function fmt(sec) {
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function render() {
+    timeText.textContent = fmt(state.left);
+    var ratio = state.total > 0 ? (state.total - state.left) / state.total : 0;
+    if (ratio < 0) ratio = 0;
+    if (ratio > 1) ratio = 1;
+    prog.style.strokeDashoffset = String(CIRC * (1 - ratio));
+    timeLabel.textContent = state.mode === 'focus'
+      ? (state.running ? '专注中' : '准备专注')
+      : (state.running ? '休息中' : '准备休息');
+    startBtn.textContent = state.running ? '暂停' : '开始';
+    doneCount.textContent = String(state.doneToday);
+    cycleCount.textContent = String(state.cycles);
+    totalMin.textContent = String(state.totalMinutes);
+  }
+
+  function tick() {
+    if (state.left > 0) {
+      state.left -= 1;
+      if (state.left <= 0) {
+        state.left = 0;
+        stop();
+        finish();
+      }
+      render();
+    }
+  }
+
+  function start() {
+    if (state.running) {
+      stop();
+      render();
+      return;
+    }
+    if (state.left <= 0) state.left = state.total;
+    state.running = true;
+    hint.textContent = state.mode === 'focus' ? '保持专注，一次只做一件事' : '放松一下，起身活动肩颈';
+    render();
+    state.tickId = setInterval(tick, 1000);
+  }
+
+  function stop() {
+    state.running = false;
+    if (state.tickId) {
+      clearInterval(state.tickId);
+      state.tickId = null;
+    }
+  }
+
+  function finish() {
+    if (state.mode === 'focus') {
+      state.doneToday += 1;
+      state.cycles += 1;
+      state.totalMinutes += Math.round(state.total / 60);
+      hint.textContent = '本轮专注完成，休息一下吧';
+    } else {
+      hint.textContent = '休息结束，准备开始下一轮';
+    }
+    render();
+  }
+
+  function reset() {
+    stop();
+    state.left = state.total;
+    hint.textContent = '已重置';
+    render();
+  }
+
+  function switchMode(mode, minutes) {
+    stop();
+    state.mode = mode;
+    state.total = minutes * 60;
+    state.left = state.total;
+    hint.textContent = mode === 'focus' ? '保持专注，一次只做一件事' : '放松一下，起身活动肩颈';
+    render();
+  }
+
+  tabs.addEventListener('click', function (e) {
+    var btn = e.target.closest('.tab');
+    if (!btn) return;
+    var all = tabs.querySelectorAll('.tab');
+    for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
+    btn.classList.add('active');
+    switchMode(btn.getAttribute('data-mode'), parseInt(btn.getAttribute('data-min'), 10));
+  });
+
+  startBtn.addEventListener('click', start);
+  resetBtn.addEventListener('click', reset);
+
+  function renderTasks() {
+    taskList.innerHTML = '';
+    var done = 0;
+    for (var i = 0; i < state.tasks.length; i++) {
+      var t = state.tasks[i];
+      if (t.done) done += 1;
+      var li = document.createElement('li');
+      li.className = 'task-item' + (t.done ? ' done' : '');
+      var dot = document.createElement('span');
+      dot.className = 'dot';
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = t.name;
+      li.appendChild(dot);
+      li.appendChild(name);
+      taskList.appendChild(li);
+    }
+    taskCount.textContent = done + ' / ' + state.tasks.length;
+  }
+
+  function addTask() {
+    var v = taskInput.value.trim();
+    if (!v) return;
+    state.tasks.push({ name: v, done: false });
+    taskInput.value = '';
+    renderTasks();
+  }
+
+  addBtn.addEventListener('click', addTask);
+  taskInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') addTask();
+  });
+
+  taskList.addEventListener('click', function (e) {
+    var li = e.target.closest('.task-item');
+    if (!li) return;
+    var items = taskList.querySelectorAll('.task-item');
+    var idx = -1;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i] === li) { idx = i; break; }
+    }
+    if (idx >= 0 && state.tasks[idx]) {
+      state.tasks[idx].done = !state.tasks[idx].done;
+      renderTasks();
+    }
+  });
+
+  renderTasks();
+  render();
+})();
+</script>
+</body>
+</html>
