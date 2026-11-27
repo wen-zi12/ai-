@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>聊吧待办 · 待办事项</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Cpath d='M18 33l9 9 20-22' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="page-todos">
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon">✓</span><span>聊吧待办</span></div>
+    <span class="topbar-title">待办事项</span>
+    <button class="icon-btn" id="themeToggle" title="切换主题">🌙</button>
+  </header>
+
+  <main class="todos-main">
+    <div class="page-heading compact">
+      <div class="heading-icon">📋</div>
+      <div>
+        <h1>待办事项</h1>
+        <p>点击闹钟图标可设置提醒，到点会调用手机通知</p>
+      </div>
+    </div>
+
+    <div class="stats" id="stats">
+      <div class="stat-card"><span class="stat-num" id="statTotal">0</span><span class="stat-label">全部</span></div>
+      <div class="stat-card pending"><span class="stat-num" id="statPending">0</span><span class="stat-label">待完成</span></div>
+      <div class="stat-card done"><span class="stat-num" id="statDone">0</span><span class="stat-label">已完成</span></div>
+      <div class="stat-card alarm"><span class="stat-num" id="statAlarm">0</span><span class="stat-label">已设提醒</span></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="filters" id="filters">
+        <button class="filter-btn active" data-filter="all">全部</button>
+        <button class="filter-btn" data-filter="pending">待完成</button>
+        <button class="filter-btn" data-filter="done">已完成</button>
+        <button class="filter-btn" data-filter="微信">微信</button>
+        <button class="filter-btn" data-filter="QQ">QQ</button>
+      </div>
+      <div class="toolbar-actions">
+        <button class="icon-btn" id="exportBtn" title="导出清单">📤</button>
+        <button class="icon-btn danger" id="clearAllBtn" title="清空全部">🗑</button>
+      </div>
+    </div>
+
+    <div class="todo-list" id="todoList"></div>
+
+    <details class="oss-notice">
+      <summary>关于与开源声明</summary>
+      <div class="oss-body">
+        <p>聊吧待办 v1.5 · 免费开源 · 本地运行</p>
+        <p>本应用使用以下开源库，其许可协议如下：</p>
+        <ul>
+          <li><b>Mammoth.js</b>（Word 解析）· BSD-2-Clause · © 2013 Michael Williamson<br><a href="https://github.com/mwilliamson/mammoth.js/blob/master/LICENSE" target="_blank" rel="noopener">查看许可证全文</a></li>
+          <li><b>PDF.js</b>（PDF 解析）· Apache-2.0 · © Mozilla Foundation<br><a href="https://github.com/mozilla/pdf.js/blob/master/LICENSE" target="_blank" rel="noopener">查看许可证全文</a></li>
+        </ul>
+        <p class="oss-note">完整许可证文本随应用一同分发，位于 vendor 目录。</p>
+      </div>
+    </details>
+  </main>
+
+  <!-- 提醒设置弹窗 -->
+  <div class="modal-mask" id="remindModal">
+    <div class="modal">
+      <h3>⏰ 设置提醒</h3>
+      <p class="modal-sub" id="remindTaskName"></p>
+      <label>提醒时间
+        <input type="datetime-local" id="remindTime">
+      </label>
+      <label>地点
+        <input type="text" id="remindLocation" placeholder="例如：会议室 / 上海国际会议中心">
+      </label>
+      <div class="quick-times">
+        <span>快捷：</span>
+        <button class="quick-btn" data-min="30">30分钟后</button>
+        <button class="quick-btn" data-min="60">1小时后</button>
+        <button class="quick-btn" data-min="1440">明天此时</button>
+      </div>
+      <p class="permission-hint" id="permissionHint"></p>
+      <div class="modal-actions">
+        <button class="text-btn" id="remindCancel">取消</button>
+        <button class="text-btn danger" id="remindRemove" style="display:none">移除提醒</button>
+        <button class="primary-btn small" id="remindSave">设置提醒</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑弹窗 -->
+  <div class="modal-mask" id="editModal">
+    <div class="modal">
+      <h3>编辑待办</h3>
+      <label>任务内容<textarea id="editContent" rows="3"></textarea></label>
+      <label>截止时间<input type="text" id="editDeadline" placeholder="例如：明天 15:00"></label>
+      <label>地点<input type="text" id="editLocation" placeholder="例如：会议室 / 上海"></label>
+      <label>负责人<input type="text" id="editAssignee" placeholder="例如：小明"></label>
+      <div class="modal-actions">
+        <button class="text-btn" id="editCancel">取消</button>
+        <button class="primary-btn small" id="editSave">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <nav class="bottom-nav">
+    <a class="bn-item" href="index.html">
+      <span class="bn-icon">📥</span><span>导入</span>
+    </a>
+    <a class="bn-item active" href="todos.html">
+      <span class="bn-icon">📋</span><span>待办</span>
+      <span class="bn-badge" id="tabBadge">0</span>
+    </a>
+  </nav>
+</div>
+
+<script src="data.js"></script>
+<script src="notify.js"></script>
+<script src="todos.js"></script>
+</body>
+</html>

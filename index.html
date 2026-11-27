@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>聊吧待办 · 导入内容</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Cpath d='M18 33l9 9 20-22' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="page-paste">
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon">✓</span><span>聊吧待办</span></div>
+    <span class="topbar-title">导入内容</span>
+    <button class="icon-btn" id="themeToggle" title="切换主题">🌙</button>
+  </header>
+
+  <main class="paste-main">
+    <div class="page-heading">
+      <div class="heading-icon">📥</div>
+      <h1>导入内容</h1>
+      <p>聊天记录、公众号文章、PDF、Word 均可提取其中的待办事项</p>
+    </div>
+
+    <!-- 来源标签 -->
+    <div class="source-tabs" id="sourceTabs">
+      <button class="source-tab active" data-tab="chat">💬 聊天</button>
+      <button class="source-tab" data-tab="article">📰 公众号</button>
+      <button class="source-tab" data-tab="pdf">📄 PDF</button>
+      <button class="source-tab" data-tab="word">📝 Word</button>
+    </div>
+
+    <!-- 聊天 / 公众号 粘贴区 -->
+    <div class="tab-panel active" id="panel-chat">
+      <div class="source-section">
+        <span class="section-label">来源平台</span>
+        <div class="source-options" id="sourceOptions">
+          <button class="source-btn active" data-source="微信">💬 微信</button>
+          <button class="source-btn" data-source="QQ">🐧 QQ</button>
+          <button class="source-btn" data-source="其他">📋 其他</button>
+        </div>
+      </div>
+      <div class="editor-card">
+        <textarea id="chatInput" placeholder="在这里粘贴聊天内容，例如：&#10;&#10;小明 10:23&#10;记得明天下午3点前把方案发给客户&#10;&#10;小红 10:25&#10;帮我订一下周五去上海的机票，尽快"></textarea>
+        <div class="editor-tools">
+          <span class="char-count" id="charCount">0 字</span>
+          <button class="text-btn" id="demoBtn">填入示例</button>
+          <button class="text-btn danger" id="clearBtn">清空</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-article">
+      <div class="tip-box article-tip">
+        <strong>📰 公众号文章链接读取</strong><br>
+        粘贴文章链接，点「读取正文」自动抓取文章内容（<b>App 版走原生网络，读取更稳</b>）。若读取失败，可在下方手动粘贴正文。
+      </div>
+      <div class="link-input-card">
+        <div class="link-input-row">
+          <input type="url" id="articleUrl" placeholder="粘贴公众号文章链接，如 https://mp.weixin.qq.com/s/...">
+          <button class="primary-btn small" id="readArticleBtn">读取正文</button>
+        </div>
+        <div class="link-status" id="linkStatus" style="display:none"></div>
+      </div>
+      <div class="editor-card">
+        <textarea id="articleInput" placeholder="读取到的正文会显示在这里（可编辑）；也可直接手动粘贴正文…"></textarea>
+        <div class="editor-tools">
+          <span class="char-count" id="articleCount">0 字</span>
+          <button class="text-btn danger" id="clearArticleBtn">清空</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF / Word 上传区 -->
+    <div class="tab-panel" id="panel-pdf">
+      <div class="upload-card" id="pdfDrop">
+        <div class="upload-icon">📄</div>
+        <h3>上传 PDF 文档</h3>
+        <p>点击选择或拖入 PDF 文件，自动提取文字中的待办</p>
+        <button class="primary-btn small" data-input="pdfFile">选择 PDF 文件</button>
+        <input type="file" id="pdfFile" accept=".pdf" hidden>
+      </div>
+      <div class="file-result" id="pdfResult" style="display:none">
+        <div class="file-result-head"><span>📄 <b id="pdfName"></b></span><button class="text-btn" id="pdfClear">移除</button></div>
+        <div class="file-preview" id="pdfPreview"></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-word">
+      <div class="upload-card" id="wordDrop">
+        <div class="upload-icon">📝</div>
+        <h3>上传 Word 文档</h3>
+        <p>支持 .docx 格式，自动提取文字中的待办</p>
+        <button class="primary-btn small" data-input="wordFile">选择 Word 文件</button>
+        <input type="file" id="wordFile" accept=".docx" hidden>
+      </div>
+      <div class="file-result" id="wordResult" style="display:none">
+        <div class="file-result-head"><span>📝 <b id="wordName"></b></span><button class="text-btn" id="wordClear">移除</button></div>
+        <div class="file-preview" id="wordPreview"></div>
+      </div>
+    </div>
+
+    <label class="auto-switch" id="autoSwitchWrap">
+      <input type="checkbox" id="autoExtract" checked>
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+      <span>粘贴后自动提取（长按粘贴 / Ctrl+V 均可）</span>
+    </label>
+
+    <button class="primary-btn big" id="extractBtn">✨ 提取待办事项</button>
+
+    <div class="tip-box">
+      <strong>💡 支持识别：</strong>记得 / 提醒 / 帮我 / 尽快 / 截止 / 明天 / 周五 / 地点：XX / @某人 等表达
+    </div>
+
+    <details class="oss-notice">
+      <summary>关于与开源声明</summary>
+      <div class="oss-body">
+        <p>聊吧待办 v1.5 · 免费开源 · 本地运行</p>
+        <p>本应用使用以下开源库，其许可协议如下：</p>
+        <ul>
+          <li><b>Mammoth.js</b>（Word 解析）· BSD-2-Clause · © 2013 Michael Williamson<br><a href="https://github.com/mwilliamson/mammoth.js/blob/master/LICENSE" target="_blank" rel="noopener">查看许可证全文</a></li>
+          <li><b>PDF.js</b>（PDF 解析）· Apache-2.0 · © Mozilla Foundation<br><a href="https://github.com/mozilla/pdf.js/blob/master/LICENSE" target="_blank" rel="noopener">查看许可证全文</a></li>
+        </ul>
+        <p class="oss-note">完整许可证文本随应用一同分发，位于 vendor 目录。</p>
+      </div>
+    </details>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <nav class="bottom-nav">
+    <a class="bn-item active" href="index.html">
+      <span class="bn-icon">📥</span><span>导入</span>
+    </a>
+    <a class="bn-item" href="todos.html">
+      <span class="bn-icon">📋</span><span>待办</span>
+      <span class="bn-badge" id="tabBadge">0</span>
+    </a>
+  </nav>
+</div>
+
+<script src="data.js"></script>
+<script src="extraction.js"></script>
+<script src="notify.js"></script>
+<script src="vendor/mammoth.browser.js"></script>
+<script src="files.js"></script>
+<script src="paste.js"></script>
+</body>
+</html>
